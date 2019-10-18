@@ -62,7 +62,8 @@ module Slydifi : sig
   direct \link : [inline-text?; string] inline-cmd
   direct +listing : [itemize] block-cmd
   direct +make-title : [block-text] block-cmd
-  direct +title: [inline-text list] block-cmd
+  direct +title-with-en: [inline-text list; inline-text list;] block-cmd
+  direct +subtitle: [inline-text list] block-cmd
   direct +author: [inline-text list] block-cmd
   direct +date: [inline-text list] block-cmd
   direct +centered-image : [imginfo] block-cmd
@@ -76,13 +77,14 @@ end = struct
 
   % 文書設定 {{{1
   let font-size-normal  = 20pt
-  let font-size-frame-title = 28pt
+  let font-size-frame-title = 24pt
   let font-size-header-footer = 12pt
-  let font-size-title   = 32pt
+  let font-size-title-ja   = 28pt
+  let font-size-title-en   = 16pt
   let font-size-author  = 20pt
-  let font-size-date  = 18pt
-  let font-size-institute  = 20pt
-  let font-size-section = 28pt
+  let font-size-date  = 12pt
+  let font-size-institute  = 16pt
+  let font-size-section = 24pt
 
   % PowerPoint の文書サイズに合わせる
   % let paper-width  = 12.8cm
@@ -124,8 +126,8 @@ end = struct
 
   % colors
 
-  let color-title = SlydifiColor.html-color 0x076678
-  let color-bg = SlydifiColor.html-color 0xF9F5D7
+  let color-title = SlydifiColor.html-color 0x222222
+  let color-bg = SlydifiColor.html-color 0xEEEEEE
   let color-fg = SlydifiColor.html-color 0x282828
   let color-emph = SlydifiColor.html-color 0xCC241D
   let color-link = SlydifiColor.html-color 0x8F3F71
@@ -282,14 +284,20 @@ end = struct
   % +make-title{} command {{{
 
   % title config
-  let title-xmin = relwid 0.18
+  let title-xmin = relwid 0.1
   let title-xmax = title-xmin +' 8pt
-  let title-ymin = relht 0.42
+  let title-ymin = relht 0.35
   let title-ymax = title-ymin +' 8pt
   let title-width = text-width *' 0.8
   let author-width = text-width *' 0.8
-  let date-ymin = relht 0.2
+  let institute-width = text-width *' 0.8
+  let date-ymax = relht 0.9
+  let subtitle-xmax = relwid 0.9
+  let subtitle-width = text-width *' 0.4
+  let subtitle-ymax = relht 0.9
+  let institute-ymin = relht 0.30
   let title-mgn = 16pt
+  let title-sep = 8pt
 
   let put-text point align ib =
     let (w, h, d) = get-natural-metrics ib in
@@ -303,24 +311,42 @@ end = struct
   % inline-graphics wid ht 0pt (fn)
 
   % +make-title の中で使う
-  let-block ctx +title its-title =
-    let ctx-title = ctx |> set-font-size font-size-title
+  let-block ctx +title-with-en its-title-ja its-title-en =
+    let ctx-title-ja = ctx |> set-font-size font-size-title-ja
                         |> set-font Latin (!fonts-frame-title-latin, 1.0, 0.)
                         |> set-cjk-font (!fonts-frame-title-cjk, !fonts-font-ratio-cjk, 0.)
                         |> set-text-color color-title
     in
-    let l = get-font-size ctx-title *' 0.25 in
-    let bbs-title ctx =
-      its-title |> List.map (fun it ->
-        line-break true true (ctx |> set-paragraph-margin l l)
-          (read-inline ctx it ++ inline-fil))
+    let ctx-title-en = ctx |> set-font-size font-size-title-en
+                        |> set-font Latin (!fonts-frame-title-latin, 1.0, 0.)
+                        |> set-cjk-font (!fonts-frame-title-cjk, !fonts-font-ratio-cjk, 0.)
+                        |> set-text-color color-title
     in
-    let ib-title = embed-block-top ctx-title title-width
-      (fun ctx -> (bbs-title ctx |> List.fold-left (+++) block-nil))
+    let l-ja = get-font-size ctx-title-ja *' 0.25 in
+    let l-en = get-font-size ctx-title-en *' 0.25 in
+    let bbs-title-ja ctx =
+      its-title-ja |> List.map (fun it ->
+        line-break true true (ctx |> set-paragraph-margin l-ja l-ja)
+          (inline-fil ++ read-inline ctx it ++ inline-fil))
     in
-    let draw-title =
-      [(put-text (title-xmax +' title-mgn, title-ymax +' title-mgn)
-        (0., 0.) ib-title);]
+    let bbs-title-en ctx =
+      its-title-en |> List.map (fun it ->
+        line-break true true (ctx |> set-paragraph-margin l-en l-en)
+          (inline-fil ++ read-inline ctx it ++ inline-fil))
+    in
+    let ib-title-ja = embed-block-top ctx-title-ja title-width
+      (fun ctx -> (bbs-title-ja ctx |> List.fold-left (+++) block-nil))
+    in
+    let ib-title-en = embed-block-top ctx-title-en title-width
+      (fun ctx -> (bbs-title-en ctx |> List.fold-left (+++) block-nil))
+    in
+    let ib-title-sep = inline-graphics title-width title-sep title-sep
+      (fun (dx, dy) -> [stroke 1pt color-title (Gr.line (dx, dy) (dx +' title-width, dy))])
+    in
+    let ib-title = line-stack-top [ib-title-ja; ib-title-sep; ib-title-en;] in
+    let draw-title = [
+        (put-text ((paper-width -' title-width) *' 0.5, title-ymax +' title-mgn) (0., 0.) ib-title);
+        ]
     in
     let ib = inline-graphics 0pt 0pt 0pt (fun _ -> draw-title) in
     (line-break true false ctx (ib ++ inline-fil))
@@ -336,7 +362,7 @@ end = struct
     let bbs-author ctx =
       its-author |> List.map (fun it ->
         line-break true true (ctx |> set-paragraph-margin l l)
-          (read-inline ctx it ++ inline-fil))
+          (inline-fil ++ read-inline ctx it ++ inline-fil))
     in
     let ib-author = embed-block-top ctx-author author-width
       (fun ctx -> (bbs-author ctx |> List.fold-left (+++) block-nil))
@@ -347,6 +373,30 @@ end = struct
     in
     let ib = inline-graphics 0pt 0pt 0pt (fun _ -> draw-author) in
     (line-break true false ctx (ib ++ inline-fil))
+
+
+  let-block ctx +institute its-institute =
+    let ctx-institute = ctx |> set-font-size font-size-institute
+                        |> set-font Latin (!fonts-frame-title-latin, 1.0, 0.)
+                        |> set-cjk-font (!fonts-frame-title-cjk, !fonts-font-ratio-cjk, 0.)
+                        |> set-text-color color-title
+    in
+    let l = get-font-size ctx-institute *' 0.25 in
+    let bbs-institute ctx =
+      its-institute |> List.map (fun it ->
+        line-break true true (ctx |> set-paragraph-margin l l)
+          (inline-fil ++ read-inline ctx it ++ inline-fil))
+    in
+    let ib-institute = embed-block-top  ctx-institute institute-width
+      (fun ctx -> (bbs-institute ctx |> List.fold-left (+++) block-nil))
+    in
+    let draw-institute =
+      [(put-text (title-xmax +' title-mgn, institute-ymin)
+        (0., 1.) ib-institute);]
+    in
+    let ib = inline-graphics 0pt 0pt 0pt (fun _ -> draw-institute) in
+    (line-break true false ctx (ib ++ inline-fil))
+
 
   % +make-title の中で使う
   let-block ctx +date its-date =
@@ -365,10 +415,32 @@ end = struct
       (fun ctx -> (bbs-date ctx |> List.fold-left (+++) block-nil))
     in
     let draw-date =
-      [(put-text (title-xmax +' title-mgn, date-ymin -' title-mgn)
-        (0., 1.) ib-date);]
+      [(put-text (title-xmax +' title-mgn, date-ymax)
+        (0., 0.) ib-date);]
     in
     let ib = inline-graphics 0pt 0pt 0pt (fun _ -> draw-date) in
+    (line-break true false ctx (ib ++ inline-fil))
+
+  let-block ctx +subtitle its-subtitle =
+    let ctx-subtitle = ctx |> set-font-size font-size-date
+                        |> set-font Latin (!fonts-frame-title-latin, 1.0, 0.)
+                        |> set-cjk-font (!fonts-frame-title-cjk, !fonts-font-ratio-cjk, 0.)
+                        |> set-text-color color-title
+    in
+    let l = get-font-size ctx-subtitle *' 0.25 in
+    let bbs-date ctx =
+      its-subtitle |> List.map (fun it ->
+        line-break true true (ctx |> set-paragraph-margin l l)
+          (inline-fil ++ read-inline ctx it))
+    in
+    let ib-date = embed-block-top ctx-subtitle subtitle-width
+      (fun ctx -> (bbs-date ctx |> List.fold-left (+++) block-nil))
+    in
+    let draw-subtitle =
+      [(put-text (subtitle-xmax -' subtitle-width, subtitle-ymax)
+        (0., 0.) ib-date);]
+    in
+    let ib = inline-graphics 0pt 0pt 0pt (fun _ -> draw-subtitle) in
     (line-break true false ctx (ib ++ inline-fil))
 
   let-block ctx +make-title bt-inner =
@@ -379,10 +451,10 @@ end = struct
 
     let draw-titleframe =
       [
-        (fill color-title north-rect);
-        (fill color-title south-rect);
-        (fill color-title east-rect);
-        (fill color-title west-rect);
+        %(fill color-title north-rect);
+        %(fill color-title south-rect);
+        %(fill color-title east-rect);
+        %(fill color-title west-rect);
       ]
     in
     let ib =
@@ -461,7 +533,7 @@ end = struct
   % 文書構造 {{{
 
   let section-title ctx its-title =
-    let ctx-title = ctx |> set-font-size font-size-title
+    let ctx-title = ctx |> set-font-size font-size-title-ja
                         |> set-font Latin (!fonts-frame-title-latin, 1.0, 0.)
                         |> set-cjk-font (!fonts-frame-title-cjk, !fonts-font-ratio-cjk, 0.)
                         |> set-text-color color-title
