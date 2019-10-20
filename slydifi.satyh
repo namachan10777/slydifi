@@ -61,6 +61,7 @@ module Slydifi : sig
   direct \br : [] inline-cmd
   direct \link : [inline-text?; string] inline-cmd
   direct +listing : [itemize] block-cmd
+  direct +listing-abs-pos : [(length * length); length; itemize] block-cmd
   direct +make-title : [block-text] block-cmd
   direct +title: [inline-text list] block-cmd
   direct +author: [inline-text list] block-cmd
@@ -683,6 +684,36 @@ end = struct
   let-block ctx +listing (Item(_, itmzlst)) =
     let bclst = List.map (item ctx 0) itmzlst in
     block-nil +++> bclst
+
+  let-rec item-abs : context -> length -> int -> itemize -> inline-boxes
+    | ctx width depth (Item(parent, children)) =
+      let font-size-tmp = font-size-normal *' (max-float (power-float-int 0.9 depth) 0.75) in
+      let color = color-title in
+      let br-bullet = (inline-graphics (font-size-normal *' 0.8) font-size-normal 0pt (bullet depth color)) in
+      let bullet-width = get-natural-width br-bullet in
+      let parent-indent = item-indent *' (float depth) in
+      let ctx2 = ctx
+        |> set-font-size font-size-tmp
+        |> set-paragraph-margin (font-size-tmp *' 0.6) (font-size-tmp *' 0.6)
+      in
+      let dummy-deco _ _ _ _ = [] in
+      let br-parent =
+          embed-block-top ctx2 (width -' parent-indent -' bullet-width) (fun ctx2 ->
+            form-paragraph ctx2 ((read-inline ctx2 parent) ++ inline-fil)
+          )
+          |> inline-frame-breakable (0pt, 0pt, 0pt, font-size-tmp *' 0.6) (dummy-deco, dummy-deco, dummy-deco, dummy-deco)
+      in
+      let ib-parent =
+          ((inline-skip parent-indent) ++ br-bullet ++ br-parent)
+      in
+      let iblst-children = List.map (item-abs ctx2 width (depth + 1)) children in
+      line-stack-top (ib-parent :: iblst-children)
+
+  let-block ctx +listing-abs-pos pt width (Item(_, itmzlst)) =
+    let iblst = List.map (item-abs ctx width 0) itmzlst in
+    let ib = line-stack-top iblst in
+    let it-gr = inline-graphics 0pt 0pt 0pt (fun _ -> [draw-text pt ib]) in
+    line-break true true ctx (it-gr ++ inline-fil)
 
       % }}}
 
