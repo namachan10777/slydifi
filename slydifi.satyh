@@ -4,8 +4,18 @@
 @require: math
 @require: list
 @require: annot
+@require: math
 @import: slydifi-color
 @import: slydifi-footnote-scheme
+
+let-math \t m =
+  text-in-math MathOrd (fun ctx -> (
+    let size = get-font-size ctx in
+    let ctx2 = 
+      ctx |> set-font-size (size *' 0.6)
+          |> set-manual-rising (size *' 0.4)
+    in
+    read-inline ctx2 {t} ++ embed-math ctx m))
 
 
 type imginfo =
