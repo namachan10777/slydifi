@@ -43,7 +43,7 @@ end = struct
   let concat-blocks = (+++>) block-nil
 
   let item-indent-ratio = 1.5
-  let item-gap-ratio = 0.75
+  let item-gap-ratio = 0.4
   let item-gap-outer-ratio = 0.3
   let font-shrink-ratio = 0.95
   let minimal-font-ratio = 0.85
