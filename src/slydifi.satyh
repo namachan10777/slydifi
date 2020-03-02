@@ -114,6 +114,8 @@ module SlydifiScheme: sig
   direct \insert-image : [imginfo] inline-cmd
   direct \fig-abs-pos : [(length * length); imginfo] inline-cmd
   direct +fig-abs-pos : [(length * length); imginfo] block-cmd
+  direct \fig-abs-pos2 : [(length * length); imginfo] inline-cmd
+  direct +fig-abs-pos2 : [(length * length); imginfo] block-cmd
 
   direct +p : [inline-text] block-cmd
   direct \br: [] inline-cmd
@@ -124,6 +126,11 @@ module SlydifiScheme: sig
     constraint 'config-text :: (|mono: config-font;|)
 
 end = struct
+
+  let-mutable ref-paper-config <- (|
+    height = 0cm;
+    width = 0cm;
+  |)
 
   % 共通の関数 {{{
 
@@ -213,6 +220,8 @@ end = struct
       footer-content = footer pbinfo;
       |)
     in
+
+    let () = ref-paper-config <- cfg-paper in
 
     let bb-main =
       let ctx-doc = (get-standard-context cfg-text cfg-color cfg-spacing#text-width) in
@@ -368,10 +377,22 @@ end = struct
     let ib = insert-image ctx img-info in
     inline-graphics 0pt 0pt 0pt (fun _ -> [draw-text pt ib])
 
+  let fig-abs-pos2 ctx pt img-info =
+    let ib = insert-image ctx img-info in
+    let (w, h, d) = get-natural-metrics ib in
+    let (x, y) = pt in
+    let paper-config = !ref-paper-config in
+    inline-graphics 0pt 0pt 0pt (fun _ -> [draw-text (x, paper-config#height -' y -' h) ib])
+
   let-inline ctx \fig-abs-pos = fig-abs-pos ctx
+  let-inline ctx \fig-abs-pos2 = fig-abs-pos2 ctx
 
   let-block ctx +fig-abs-pos pt img-info =
     let it-gr = fig-abs-pos ctx pt img-info in
+    line-break true true ctx (it-gr ++ inline-fil)
+
+  let-block ctx +fig-abs-pos2 pt img-info =
+    let it-gr = fig-abs-pos2 ctx pt img-info in
     line-break true true ctx (it-gr ++ inline-fil)
 
   let fig-right paper-width text-horizontal-margin ctx img-info =
