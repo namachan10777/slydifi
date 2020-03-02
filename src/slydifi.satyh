@@ -370,6 +370,7 @@ end = struct
   let-inline ctx \insert-image = insert-image ctx
 
   let-block ctx +centered-image img-info = 
+    let ctx = ctx |> set-paragraph-margin 2pt 2pt in
     line-break true true ctx (inline-fil ++ (insert-image ctx img-info) ++ inline-fil)
 
   let fig-abs-pos ctx pt img-info =
